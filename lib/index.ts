@@ -31,7 +31,10 @@ export const indexedRedis = <T>(dbName: string) => {
 					if (!db) {
 						db = event.target.result;
 					}
-					db.createObjectStore(dbName, { autoIncrement: false });
+					db.createObjectStore(dbName, {
+						autoIncrement: false,
+						keyPath: "key",
+					});
 				};
 			} else {
 				res(void 0);
@@ -154,17 +157,13 @@ export const indexedRedis = <T>(dbName: string) => {
 					const now = Date.now();
 					// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 					data.forEach((v: any) => {
-						Object.keys(v).forEach((key) => {
-							if (key !== "value" && key !== "expire") {
-								if (v.expire && v.expire < now) {
-									needDelete.push(key);
-									return;
-								}
-								if (out[key] === void 0) {
-									out[key] = v.value;
-								}
-							}
-						});
+						if (v.expire && v.expire < now) {
+							needDelete.push(v.key);
+							return;
+						}
+						if (out[v.key] === void 0) {
+							out[v.key] = v.value;
+						}
 					});
 					res(out);
 					setTimeout(() => {
@@ -207,11 +206,11 @@ export const indexedRedis = <T>(dbName: string) => {
 				const transaction = db.transaction([dbName], "readwrite");
 				const objectStore = transaction.objectStore(dbName);
 				const data = {
-					[key]: key,
+					key: key,
 					value: theObj,
 					expire: expireMillisecond ? Date.now() + expireMillisecond : 0,
 				};
-				const request = objectStore.put(data, key as "string");
+				const request = objectStore.put(data);
 				request.onerror = (err) => {
 					console.error(err);
 					res(obj);
@@ -340,7 +339,7 @@ export const indexedRedis = <T>(dbName: string) => {
 		) => {
 			const now = Date.now();
 			setExJobs[key as string] = {
-				expire: expireMillisecond ? now + expireMillisecond : 0,
+				expire: expireMillisecond,
 				value,
 			};
 			valueCache[key as string] = {

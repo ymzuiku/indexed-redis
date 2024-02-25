@@ -82,7 +82,10 @@ var indexedRedis = (dbName) => {
           if (!db) {
             db = event.target.result;
           }
-          db.createObjectStore(dbName, { autoIncrement: false });
+          db.createObjectStore(dbName, {
+            autoIncrement: false,
+            keyPath: "key"
+          });
         };
       } else {
         res(undefined);
@@ -194,17 +197,13 @@ var indexedRedis = (dbName) => {
           const data = event.target.result;
           const now = Date.now();
           data.forEach((v) => {
-            Object.keys(v).forEach((key) => {
-              if (key !== "value" && key !== "expire") {
-                if (v.expire && v.expire < now) {
-                  needDelete.push(key);
-                  return;
-                }
-                if (out2[key] === undefined) {
-                  out2[key] = v.value;
-                }
-              }
-            });
+            if (v.expire && v.expire < now) {
+              needDelete.push(v.key);
+              return;
+            }
+            if (out2[v.key] === undefined) {
+              out2[v.key] = v.value;
+            }
           });
           res(out2);
           setTimeout(() => {
@@ -238,11 +237,11 @@ var indexedRedis = (dbName) => {
         const transaction = db.transaction([dbName], "readwrite");
         const objectStore = transaction.objectStore(dbName);
         const data = {
-          [key]: key,
+          key,
           value: theObj,
           expire: expireMillisecond ? Date.now() + expireMillisecond : 0
         };
-        const request = objectStore.put(data, key);
+        const request = objectStore.put(data);
         request.onerror = (err) => {
           console.error(err);
           res(obj);
@@ -347,7 +346,7 @@ var indexedRedis = (dbName) => {
     setEx: async (key, expireMillisecond, value) => {
       const now = Date.now();
       setExJobs[key] = {
-        expire: expireMillisecond ? now + expireMillisecond : 0,
+        expire: expireMillisecond,
         value
       };
       valueCache[key] = {
@@ -375,4 +374,4 @@ export {
   indexedRedis
 };
 
-//# debugId=220900F768999E2864756e2164756e21
+//# debugId=972630A0F55FB71C64756e2164756e21

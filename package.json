@@ -1,11 +1,12 @@
 {
   "name": "indexed-redis",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": false,
   "types": "esm/index.d.ts",
   "main": "esm/index.js",
   "files": [
-    "esm"
+    "esm",
+    "bun.lockb"
   ],
   "scripts": {
     "esm": "bun run esm.ts"
