@@ -61,7 +61,7 @@ var debounce = function(delay, callback, options) {
 var indexedRedis = (dbName) => {
   const isHaveIndexedDb = typeof window.indexedDB !== "undefined";
   if (!isHaveIndexedDb) {
-    console.error("[nano-indexed] [Error] Your browser not have indexedDB, Now use localStorage.");
+    console.error("[indexed-redis] [Error] Your browser not have indexedDB, Now use localStorage.");
   }
   let db;
   let lastClearTime = 0;
@@ -375,4 +375,4 @@ export {
   indexedRedis
 };
 
-//# debugId=17E5C0980F6A924564756e2164756e21
+//# debugId=220900F768999E2864756e2164756e21

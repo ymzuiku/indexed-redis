@@ -6,7 +6,7 @@ export const indexedRedis = <T>(dbName: string) => {
 	const isHaveIndexedDb = typeof window.indexedDB !== "undefined";
 	if (!isHaveIndexedDb) {
 		console.error(
-			"[nano-indexed] [Error] Your browser not have indexedDB, Now use localStorage.",
+			"[indexed-redis] [Error] Your browser not have indexedDB, Now use localStorage.",
 		);
 	}
 	let db: IDBDatabase;

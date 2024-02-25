@@ -10,19 +10,26 @@ indexed-redis is a simplified web-indexedDB method
 
 ## API
 
-#### Top API
-
-- indexedRedis<T>(dbName:string):Db
-
-#### DB API
-
-- `get(key:K):Promise<T[K]>`
-- `set(key:K, value: T[K])`
-- `setEx(key:K, expireMillisecond: number, value: T[K])`
-- `assignEx(key:K, expireMillisecond: number, value: T[K])`
-- `getAll()->Promise<T>`
-- `del(key:K):Promise<T[K]>`
-- `flushDb():Promise<void>`
+```ts
+declare const indexedRedis: <T>(dbName: string) => {
+  set: <K extends keyof T>(key: K, value: T[K]) => Promise<void>;
+  setEx: (
+    key: keyof T,
+    expireMillisecond: number,
+    value: T[keyof T]
+  ) => Promise<void>;
+  get: <K_1 extends keyof T>(key: K_1) => Promise<T[K_1] | undefined>;
+  getAll: () => Promise<Partial<T>>;
+  assignEx: <K_2 extends keyof T>(
+    key: K_2,
+    expireMillisecond: number,
+    obj: T[K_2]
+  ) => Promise<T[K_2]>;
+  del: <K_3 extends keyof T>(key: K_3) => Promise<T[K_3] | undefined>;
+  flushDb: () => Promise<void>;
+  clearExpiredItems: (force?: boolean) => Promise<Partial<T> | undefined>;
+};
+```
 
 ## Use
 
@@ -62,5 +69,6 @@ const example = async () => {
   // Delete all data
   await db.flushDb();
 };
+
 example();
 ```
