@@ -16,37 +16,51 @@ indexed-redis is a simplified web-indexedDB method
 
 #### DB API
 
-- get(key:K):Promise<T[K]>
-- set(key:K, value: T[K]);
-- setEx(key:K, expireMillisecond: number, value: T[K]);
-- assignEx(key:K, expireMillisecond: number, value: T[K]);
-- getAll()->Promise<T>;
-- del(key:K):Promise<T[K]>;
-- flushDb():Promise<void>;
+- `get(key:K):Promise<T[K]>`
+- `set(key:K, value: T[K])`
+- `setEx(key:K, expireMillisecond: number, value: T[K])`
+- `assignEx(key:K, expireMillisecond: number, value: T[K])`
+- `getAll()->Promise<T>`
+- `del(key:K):Promise<T[K]>`
+- `flushDb():Promise<void>`
 
 ## Use
 
-```js
+```ts
 import { indexedRedis } from "indexed-redis";
 
 // Example of explicitly declared instance
+interface Model {
+  page: { name: string; age: number };
+  user: { email: string };
+}
+
 const example = async () => {
-  const db =
-    indexedRedis <
-    { page: { name: string, age: number }, user: { email: string } } >
-    "my-db";
+  const db = indexedRedis<Model>("my-db");
 
   // Store data
-  await db.setEx("page", 1000 * 60, { name: "bobo", age: 20 });
+  await db.set("user", { email: "example@gmail.com" });
+
+  await db.setEx("page", 1000, { name: "bobo", age: 20 });
 
   // Retrieve data
-  const data = await db.get("page");
+  const data = await db.get("page"); // has
 
   // Update partial values
-  const nextData = await db.assign("page", { name: "dog" });
+  const nextData = await db.assignEx("page", 1000, { name: "dog" });
+
+  await new Promise((res) => setTimeout(res, 1000 * 2));
+
+  const data = await db.get("page"); // void 0
 
   // Delete data
-  await db.remove("page");
+  await db.del("user");
+
+  // Delete all data
+  const data = await db.getAll(); // Model
+
+  // Delete all data
+  await db.flushDb();
 };
 example();
 ```
