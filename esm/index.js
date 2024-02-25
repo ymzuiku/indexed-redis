@@ -1,63 +1,5 @@
-// node_modules/throttle-debounce/esm/index.js
-var throttle = function(delay, callback, options) {
-  var _ref = options || {}, _ref$noTrailing = _ref.noTrailing, noTrailing = _ref$noTrailing === undefined ? false : _ref$noTrailing, _ref$noLeading = _ref.noLeading, noLeading = _ref$noLeading === undefined ? false : _ref$noLeading, _ref$debounceMode = _ref.debounceMode, debounceMode = _ref$debounceMode === undefined ? undefined : _ref$debounceMode;
-  var timeoutID;
-  var cancelled = false;
-  var lastExec = 0;
-  function clearExistingTimeout() {
-    if (timeoutID) {
-      clearTimeout(timeoutID);
-    }
-  }
-  function cancel(options2) {
-    var _ref2 = options2 || {}, _ref2$upcomingOnly = _ref2.upcomingOnly, upcomingOnly = _ref2$upcomingOnly === undefined ? false : _ref2$upcomingOnly;
-    clearExistingTimeout();
-    cancelled = !upcomingOnly;
-  }
-  function wrapper() {
-    for (var _len = arguments.length, arguments_ = new Array(_len), _key = 0;_key < _len; _key++) {
-      arguments_[_key] = arguments[_key];
-    }
-    var self = this;
-    var elapsed = Date.now() - lastExec;
-    if (cancelled) {
-      return;
-    }
-    function exec() {
-      lastExec = Date.now();
-      callback.apply(self, arguments_);
-    }
-    function clear() {
-      timeoutID = undefined;
-    }
-    if (!noLeading && debounceMode && !timeoutID) {
-      exec();
-    }
-    clearExistingTimeout();
-    if (debounceMode === undefined && elapsed > delay) {
-      if (noLeading) {
-        lastExec = Date.now();
-        if (!noTrailing) {
-          timeoutID = setTimeout(debounceMode ? clear : exec, delay);
-        }
-      } else {
-        exec();
-      }
-    } else if (noTrailing !== true) {
-      timeoutID = setTimeout(debounceMode ? clear : exec, debounceMode === undefined ? delay - elapsed : delay);
-    }
-  }
-  wrapper.cancel = cancel;
-  return wrapper;
-};
-var debounce = function(delay, callback, options) {
-  var _ref = options || {}, _ref$atBegin = _ref.atBegin, atBegin = _ref$atBegin === undefined ? false : _ref$atBegin;
-  return throttle(delay, callback, {
-    debounceMode: atBegin !== false
-  });
-};
-
 // lib/index.ts
+import {debounce} from "throttle-debounce";
 var indexedRedis = (dbName) => {
   const isHaveIndexedDb = typeof window.indexedDB !== "undefined";
   if (!isHaveIndexedDb) {
@@ -374,4 +316,4 @@ export {
   indexedRedis
 };
 
-//# debugId=972630A0F55FB71C64756e2164756e21
+//# debugId=625BBAF4B923FCEB64756e2164756e21
