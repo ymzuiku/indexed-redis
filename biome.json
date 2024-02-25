@@ -1,0 +1,44 @@
+{
+	"$schema": "https://biomejs.dev/schemas/1.3.3/schema.json",
+	"organizeImports": {
+		"enabled": true
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"correctness": {
+				"noConstantCondition": "off"
+			},
+			"a11y": {
+				"noSvgWithoutTitle": "off"
+			},
+			"complexity": {
+				"noForEach": "off"
+			}
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
+	"files": {
+		"include": [
+			"src/*.ts",
+			"src/*.tsx",
+			"src/**/*.tsx",
+			"src/**/*.ts",
+			"ser/**/*.ts",
+			"ser/*.ts",
+			"packages/**/*.ts",
+			"packages/**/*.tsx",
+			"i18n.config.ts"
+		],
+		"ignore": [
+			"node_modules",
+			"esm",
+			"*.js"
+		]
+	}
+}

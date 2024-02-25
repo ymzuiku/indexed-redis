@@ -1,0 +1,35 @@
+{
+  "name": "indexed-redis",
+  "version": "0.0.1",
+  "private": false,
+  "types": "esm/index.d.ts",
+  "main": "esm/index.js",
+  "files": [
+    "esm"
+  ],
+  "scripts": {
+    "esm": "bun run esm.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ymzuiku/indexed-redis.git"
+  },
+  "bugs": {
+    "url": "git+https://github.com/ymzuiku/indexed-redis.git"
+  },
+  "homepage": "git+https://github.com/ymzuiku/indexed-redis.git",
+  "license": "MIT",
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^13.5.0",
+    "@types/bun": "latest",
+    "@types/throttle-debounce": "^5.0.2",
+    "bun-plugin-dts": "^0.2.1",
+    "typescript": "^5.3.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "throttle-debounce": "^5.0.0"
+  }
+}
