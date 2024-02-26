@@ -2,7 +2,10 @@ import { debounce } from "throttle-debounce";
 
 export type IndexedRedis<T> = ReturnType<typeof indexedRedis<T>>;
 
-export const indexedRedis = <T>(dbName: string) => {
+export const indexedRedis = <T>(
+	dbName: string,
+	{ optimisticDelay }: { optimisticDelay: number } = { optimisticDelay: 500 },
+) => {
 	const isHaveIndexedDb = typeof window.indexedDB !== "undefined";
 	if (!isHaveIndexedDb) {
 		console.error(
@@ -297,7 +300,7 @@ export const indexedRedis = <T>(dbName: string) => {
 
 	let reduceValueCache = 0;
 
-	const runSetExJobs = debounce(500, () => {
+	const runSetExJobs = debounce(optimisticDelay, () => {
 		reduceValueCache++;
 		if (reduceValueCache > 200) {
 			reduceValueCache = 0;

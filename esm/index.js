@@ -1,6 +1,6 @@
 // lib/index.ts
 import {debounce} from "throttle-debounce";
-var indexedRedis = (dbName) => {
+var indexedRedis = (dbName, { optimisticDelay } = { optimisticDelay: 500 }) => {
   const isHaveIndexedDb = typeof window.indexedDB !== "undefined";
   if (!isHaveIndexedDb) {
     console.error("[indexed-redis] [Error] Your browser not have indexedDB, Now use localStorage.");
@@ -254,7 +254,7 @@ var indexedRedis = (dbName) => {
     }));
   };
   let reduceValueCache = 0;
-  const runSetExJobs = debounce(500, () => {
+  const runSetExJobs = debounce(optimisticDelay, () => {
     reduceValueCache++;
     if (reduceValueCache > 200) {
       reduceValueCache = 0;
@@ -316,4 +316,4 @@ export {
   indexedRedis
 };
 
-//# debugId=625BBAF4B923FCEB64756e2164756e21
+//# debugId=BD9F7447F5B9042A64756e2164756e21
