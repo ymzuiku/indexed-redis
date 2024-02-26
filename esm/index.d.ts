@@ -29,7 +29,7 @@ export declare class IndexedRedis<T> {
 	assign: <K extends keyof T>(key: K, value: Partial<T[K]>) => Promise<Partial<T[K]>>;
 	get: <K extends keyof T>(key: K) => Promise<T[K]>;
 	getAll: () => Promise<Partial<T>>;
-	del: <K extends keyof T>(key: K) => Promise<T[K] | undefined>;
+	del: <K extends keyof T>(key: K) => Promise<T[K]>;
 	flushDb: () => Promise<void>;
 }
 

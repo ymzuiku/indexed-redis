@@ -311,7 +311,7 @@ class IndexedRedis {
     if (!isHaveIndexedDb) {
       return new Promise((res) => {
         localStorage.removeItem(`[${this.dbName}] ${key}`);
-        res(undefined);
+        res(this.defaultValue[key]);
       });
     }
     return new Promise((res) => {
@@ -321,11 +321,11 @@ class IndexedRedis {
         const request = objectStore.delete(key);
         request.onerror = (err) => {
           console.error(err);
-          res(undefined);
+          res(this.defaultValue[key]);
         };
         request.onsuccess = res;
       } else {
-        res(undefined);
+        res(this.defaultValue[key]);
       }
     });
   };
@@ -340,4 +340,4 @@ export {
   IndexedRedis
 };
 
-//# debugId=74BA6C25AA5320C564756e2164756e21
+//# debugId=1C46CE5BEC5EAD8364756e2164756e21

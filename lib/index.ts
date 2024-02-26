@@ -364,7 +364,7 @@ export class IndexedRedis<T> {
 		});
 	};
 
-	public del = async <K extends keyof T>(key: K): Promise<T[K] | undefined> => {
+	public del = async <K extends keyof T>(key: K): Promise<T[K]> => {
 		if (!this.db) {
 			await this.initDb();
 		}
@@ -372,7 +372,7 @@ export class IndexedRedis<T> {
 		if (!isHaveIndexedDb) {
 			return new Promise((res) => {
 				localStorage.removeItem(`[${this.dbName}] ${key as string}`);
-				res(void 0);
+				res(this.defaultValue[key]);
 			});
 		}
 		return new Promise((res) => {
@@ -382,12 +382,12 @@ export class IndexedRedis<T> {
 				const request = objectStore.delete(key as "string");
 				request.onerror = (err) => {
 					console.error(err);
-					res(void 0);
+					res(this.defaultValue[key]);
 				};
 				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 				request.onsuccess = res as any;
 			} else {
-				res(void 0);
+				res(this.defaultValue[key]);
 			}
 		});
 	};
