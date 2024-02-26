@@ -23,11 +23,11 @@ export declare class IndexedRedis<T> {
 	private baseAssignEx;
 	private getCacheValue;
 	private baseGet;
-	setEx: <K extends keyof T>(key: K, expireMillisecond: number, value: T[K]) => void;
-	set: <K extends keyof T>(key: K, value: T[K]) => void;
+	setEx: <K extends keyof T>(key: K, expireMillisecond: number, value: T[K]) => Promise<void>;
+	set: <K extends keyof T>(key: K, value: T[K]) => Promise<void>;
 	assignEx: <K extends keyof T>(key: K, expireMillisecond: number, value: Partial<T[K]>) => Promise<Partial<T[K]>>;
 	assign: <K extends keyof T>(key: K, value: Partial<T[K]>) => Promise<Partial<T[K]>>;
-	get: <K extends keyof T>(key: K) => Promise<T[K] | undefined>;
+	get: <K extends keyof T>(key: K) => Promise<T[K]>;
 	getAll: () => Promise<Partial<T>>;
 	del: <K extends keyof T>(key: K) => Promise<T[K] | undefined>;
 	flushDb: () => Promise<void>;
