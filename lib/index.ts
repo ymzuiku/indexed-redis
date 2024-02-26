@@ -112,7 +112,6 @@ export const indexedRedis = <T>(dbName: string) => {
 			}
 			out[key] = v.value;
 		});
-		// 获取所有数据
 		if (!isHaveIndexedDb) {
 			return new Promise((res) => {
 				const now = Date.now();
