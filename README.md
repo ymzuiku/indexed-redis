@@ -11,7 +11,14 @@ indexed-redis is a simplified web-indexedDB method
 ## API
 
 ```ts
-declare const indexedRedis: <T>(dbName: string) => {
+export declare const indexedRedis: <T>(
+  dbName: string,
+  {
+    optimisticDelay,
+  }?: {
+    optimisticDelay: number;
+  }
+) => {
   set: <K extends keyof T>(key: K, value: T[K]) => Promise<void>;
   setEx: (
     key: keyof T,
