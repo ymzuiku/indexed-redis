@@ -1,14 +1,27 @@
 /// <reference lib="dom" />
 
 import { beforeEach, describe, expect, it, setSystemTime } from "bun:test";
-import { IndexedRedis, indexedRedis } from ".";
+import { IndexedRedis } from ".";
 
 describe("indexedDB", () => {
-	let db: IndexedRedis<{ dog?: string; obj?: { age?: number; name?: string } }>;
+	type Model = { dog: string; obj?: { age?: number; name?: string } };
+	let db: IndexedRedis<Model>;
 
 	beforeEach(() => {
-		db = indexedRedis(Math.random().toString());
+		db = new IndexedRedis<Model>({
+			dbName: Math.random().toString(36).substring(7),
+			defaultValue: { dog: "the dog" },
+			optimisticDelay: 500,
+		});
 		setSystemTime(new Date());
+	});
+
+	it("initd value", async () => {
+		const data = await db.get("obj");
+		expect(data).toBeUndefined();
+
+		const dog = await db.get("dog");
+		expect(dog).toEqual("the dog");
 	});
 
 	it("set, get", async () => {
@@ -100,7 +113,7 @@ describe("indexedDB", () => {
 		await db.del("dog");
 		const aa = await db.getAll();
 		const item = await db.get("dog");
-		expect(item).toBeUndefined();
+		expect(item).toEqual("the dog");
 	});
 
 	it("should remove items when clear is called", async () => {
@@ -108,6 +121,6 @@ describe("indexedDB", () => {
 		await db.flushDb();
 		const aa = await db.getAll();
 		const item = await db.get("dog");
-		expect(item).toBeUndefined();
+		expect(item).toBe("the dog");
 	});
 });

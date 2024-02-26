@@ -11,31 +11,38 @@ indexed-redis is a simplified web-indexedDB method
 ## API
 
 ```ts
-export declare const indexedRedis: <T>(
-  dbName: string,
-  {
+export interface IndexedRedisOptions<T> {
+  dbName: string;
+  defaultValue: T;
+  optimisticDelay?: number;
+}
+export declare class IndexedRedis<T> {
+  constructor({
+    dbName,
+    defaultValue,
     optimisticDelay,
-  }?: {
-    optimisticDelay: number;
-  }
-) => {
-  set: <K extends keyof T>(key: K, value: T[K]) => Promise<void>;
-  setEx: (
-    key: keyof T,
+  }: IndexedRedisOptions<T>);
+  clearExpiredItems: (force?: boolean) => Promise<void>;
+  setEx: <K extends keyof T>(
+    key: K,
     expireMillisecond: number,
-    value: T[keyof T]
-  ) => Promise<void>;
-  get: <K_1 extends keyof T>(key: K_1) => Promise<T[K_1] | undefined>;
+    value: T[K]
+  ) => void;
+  set: <K extends keyof T>(key: K, value: T[K]) => void;
+  assignEx: <K extends keyof T>(
+    key: K,
+    expireMillisecond: number,
+    value: Partial<T[K]>
+  ) => Promise<Partial<T[K]>>;
+  assign: <K extends keyof T>(
+    key: K,
+    value: Partial<T[K]>
+  ) => Promise<Partial<T[K]>>;
+  get: <K extends keyof T>(key: K) => Promise<T[K] | undefined>;
   getAll: () => Promise<Partial<T>>;
-  assignEx: <K_2 extends keyof T>(
-    key: K_2,
-    expireMillisecond: number,
-    obj: T[K_2]
-  ) => Promise<T[K_2]>;
-  del: <K_3 extends keyof T>(key: K_3) => Promise<T[K_3] | undefined>;
+  del: <K extends keyof T>(key: K) => Promise<T[K] | undefined>;
   flushDb: () => Promise<void>;
-  clearExpiredItems: (force?: boolean) => Promise<Partial<T> | undefined>;
-};
+}
 ```
 
 ## Use
@@ -50,12 +57,15 @@ interface Model {
 }
 
 const example = async () => {
-  const db = indexedRedis<Model>("my-db");
+  const db = new IndexedRedis<Model>({
+    dbName: "my-db",
+    defaultValue: { page: { name: "", age: 0 }, user: { email: "" } },
+  });
 
   // Store data
   await db.set("user", { email: "example@gmail.com" });
 
-  await db.setEx("page", 1000, { name: "bobo", age: 20 });
+  await db.setEx("page", 1000, { name: "dog", age: 20 });
 
   // Retrieve data
   const data = await db.get("page"); // has

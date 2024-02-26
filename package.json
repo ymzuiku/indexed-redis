@@ -1,6 +1,6 @@
 {
   "name": "indexed-redis",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": false,
   "types": "esm/index.d.ts",
   "main": "esm/index.js",
