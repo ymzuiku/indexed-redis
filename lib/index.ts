@@ -7,6 +7,8 @@ interface IndexedRedisOptions<T> {
 	optimisticDelay?: number;
 }
 
+// aaa
+
 export class IndexedRedis<T> {
 	private dbName: string;
 	private defaultValue: T;
@@ -82,7 +84,7 @@ export class IndexedRedis<T> {
 		}
 		return new Promise((res) => {
 			if (!this.db) {
-				const reqDb = window.indexedDB.open("indexed-redis");
+				const reqDb = window.indexedDB.open("indexed-redis-" + this.dbName);
 				reqDb.onerror = console.error;
 				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 				reqDb.onsuccess = (event: any) => {

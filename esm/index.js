@@ -72,7 +72,7 @@ class IndexedRedis {
     }
     return new Promise((res) => {
       if (!this.db) {
-        const reqDb = window.indexedDB.open("indexed-redis");
+        const reqDb = window.indexedDB.open("indexed-redis-" + this.dbName);
         reqDb.onerror = console.error;
         reqDb.onsuccess = (event) => {
           if (!this.db) {
@@ -340,4 +340,4 @@ export {
   IndexedRedis
 };
 
-//# debugId=1C46CE5BEC5EAD8364756e2164756e21
+//# debugId=2D957A400A9404AF64756e2164756e21

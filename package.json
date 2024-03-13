@@ -9,7 +9,8 @@
     "bun.lockb"
   ],
   "scripts": {
-    "esm": "bun run esm.ts"
+    "esm": "bun run scripts/esm.ts",
+    "dev": "bun run scripts/esm-watch.ts"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   "homepage": "git+https://github.com/ymzuiku/indexed-redis.git",
   "license": "MIT",
   "devDependencies": {
+    "@biomejs/biome": "^1.6.1",
     "@happy-dom/global-registrator": "^13.5.0",
     "@types/bun": "latest",
     "@types/throttle-debounce": "^5.0.2",

@@ -4,13 +4,13 @@ import { beforeEach, describe, expect, it, setSystemTime } from "bun:test";
 import { IndexedRedis } from ".";
 
 describe("indexedDB", () => {
-	type Model = { dog: string; obj?: { age?: number; name?: string } };
+	type Model = { dog: string; obj?: { age?: number; name?: string }, fish?:{num:number} };
 	let db: IndexedRedis<Model>;
 
 	beforeEach(() => {
 		db = new IndexedRedis<Model>({
 			dbName: Math.random().toString(36).substring(7),
-			defaultValue: { dog: "the dog" },
+			defaultValue: { dog: "the dog", fish:{num:1} },
 			optimisticDelay: 500,
 		});
 		setSystemTime(new Date());
@@ -22,6 +22,12 @@ describe("indexedDB", () => {
 
 		const dog = await db.get("dog");
 		expect(dog).toEqual("the dog");
+		const all = await db.getAll();
+		expect(all).toEqual({
+			dog: "the dog",
+			fish:{num:1},
+			obj: undefined,
+		});
 	});
 
 	it("set, get", async () => {
@@ -32,6 +38,11 @@ describe("indexedDB", () => {
 
 		const data3 = await db.get("obj");
 		expect(data3).toEqual({ age: 50 });
+	});
+
+	it("set, assign", async () => {
+		const data3 = await db.assign("fish", {num:50});
+		expect(data3).toEqual({ num: 50 });
 	});
 
 	it("setEx, get", async () => {

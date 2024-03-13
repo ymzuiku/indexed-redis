@@ -31,13 +31,17 @@
 			"src/**/*.ts",
 			"ser/**/*.ts",
 			"ser/*.ts",
+			"lib/**/*.ts",
+			"lib/*.ts",
+			"scripts/**/*.ts",
+			"scripts/*.ts",
 			"packages/**/*.ts",
-			"packages/**/*.tsx",
-			"i18n.config.ts"
+			"packages/**/*.tsx"
 		],
 		"ignore": [
 			"node_modules",
 			"esm",
+			"cjs",
 			"*.js"
 		]
 	}
