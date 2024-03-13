@@ -9,6 +9,8 @@
     "bun.lockb"
   ],
   "scripts": {
+    "prepare": "husky install",
+    "pre-commit": "bun test && bun run scripts/esm.ts",
     "esm": "bun run scripts/esm.ts",
     "dev": "bun run scripts/esm-watch.ts"
   },
@@ -27,6 +29,7 @@
     "@types/bun": "latest",
     "@types/throttle-debounce": "^5.0.2",
     "bun-plugin-dts": "^0.2.1",
+    "husky": "^9.0.11",
     "typescript": "^5.3.2"
   },
   "peerDependencies": {
