@@ -60,9 +60,12 @@ class IndexedRedis {
     });
   }
   initDb = async () => {
+    if (this.db) {
+      return;
+    }
     if (!this.initd) {
       for (const key of Object.keys(this.defaultValue)) {
-        await this.baseSetEx(key, 0, this.defaultValue[key], true);
+        await this.baseSetExNoCache(key, 0, this.defaultValue[key]);
       }
       localStorage.setItem(`indexed-redis-initd-${this.dbName}`, "true");
       this.initd = true;
@@ -72,7 +75,7 @@ class IndexedRedis {
     }
     return new Promise((res) => {
       if (!this.db) {
-        const reqDb = window.indexedDB.open("indexed-redis-" + this.dbName);
+        const reqDb = window.indexedDB.open(this.dbName);
         reqDb.onerror = console.error;
         reqDb.onsuccess = (event) => {
           if (!this.db) {
@@ -102,11 +105,7 @@ class IndexedRedis {
     this.lastClearTime = now;
     await this.getAll();
   };
-  baseSetEx = async (key, expireMillisecond, value, isInit) => {
-    if (!this.db && !isInit) {
-      await this.initDb();
-    }
-    this.clearExpiredItems();
+  baseSetExNoCache = async (key, expireMillisecond, value) => {
     const theObj = value;
     if (!isHaveIndexedDb) {
       return new Promise((res) => {
@@ -139,16 +138,18 @@ class IndexedRedis {
       }
     });
   };
+  baseSetEx = async (key, expireMillisecond, value) => {
+    await this.initDb();
+    this.clearExpiredItems();
+    this.baseSetExNoCache(key, expireMillisecond, value);
+  };
   baseAssignEx = async (key, expireMillisecond, value) => {
     if (typeof value !== "object") {
       throw new Error("[NanoIndexed.assign] assign need is object");
     }
-    const old = await this.get(key);
+    const old = await this.get(key) || this.defaultValue[key];
     if (!old) {
       throw new Error("[NanoIndexed.assign] assign need has old object");
-    }
-    if (typeof old !== "object") {
-      return old;
     }
     const next = Object.assign(old, value);
     this.setEx(key, expireMillisecond, next);
@@ -164,35 +165,20 @@ class IndexedRedis {
       return old.value;
     }
   };
-  baseGet = async (key) => {
-    if (!this.db) {
-      await this.initDb();
-    }
-    const cacheValue = this.getCacheValue(key);
-    if (cacheValue !== undefined) {
-      return cacheValue;
-    }
-    this.clearExpiredItems();
+  baseGetNoCache = async (key) => {
     if (!isHaveIndexedDb) {
       return new Promise((res) => {
-        let data = localStorage.getItem(`[${this.dbName}] ${key}`);
-        if (data) {
-          try {
-            const obj = JSON.parse(data);
-            data = obj?.value;
-            if (obj?.expire && obj.expire < Date.now()) {
-              localStorage.removeItem(`[${this.dbName}] ${key}`);
-              res(this.defaultValue[key]);
-              return;
-            }
-          } catch (err) {
-          }
+        const old = localStorage.getItem(`[${this.dbName}] ${key}`);
+        if (old === undefined || old === null) {
+          return res(this.defaultValue[key]);
         }
-        if (data === undefined || data === null) {
-          res(this.defaultValue[key]);
-          return;
+        try {
+          const value = JSON.parse(old).value;
+          res(value);
+        } catch (error) {
+          console.error("[indexed-redis] get error:", error);
+          return res(this.defaultValue[key]);
         }
-        res(data);
       });
     }
     return new Promise((res) => {
@@ -202,12 +188,26 @@ class IndexedRedis {
         const request = objectStore.get(key);
         request.onsuccess = (event) => {
           const data = event.target.result;
-          res(data?.value);
+          console.log("--debug--111", data);
+          if (data?.value === undefined) {
+            res(this.defaultValue[key]);
+          } else {
+            res(data?.value);
+          }
         };
       } else {
         res(this.defaultValue[key]);
       }
     });
+  };
+  get = async (key) => {
+    await this.initDb();
+    const cacheValue = this.getCacheValue(key);
+    if (cacheValue !== undefined) {
+      return cacheValue;
+    }
+    this.clearExpiredItems();
+    return this.baseGetNoCache(key);
   };
   setEx = async (key, expireMillisecond, value) => {
     const now = Date.now();
@@ -230,13 +230,8 @@ class IndexedRedis {
   assign = (key, value) => {
     return this.baseAssignEx(key, 0, value);
   };
-  get = (key) => {
-    return this.baseGet(key);
-  };
   getAll = async () => {
-    if (!this.db) {
-      await this.initDb();
-    }
+    await this.initDb();
     const out = {};
     Object.keys(this.valueCache).forEach((key) => {
       const v = this.valueCache[key];
@@ -304,9 +299,7 @@ class IndexedRedis {
     });
   };
   del = async (key) => {
-    if (!this.db) {
-      await this.initDb();
-    }
+    await this.initDb();
     delete this.valueCache[key];
     if (!isHaveIndexedDb) {
       return new Promise((res) => {
@@ -340,4 +333,4 @@ export {
   IndexedRedis
 };
 
-//# debugId=2D957A400A9404AF64756e2164756e21
+//# debugId=B59445C93D5339E864756e2164756e21

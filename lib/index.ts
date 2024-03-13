@@ -7,8 +7,6 @@ interface IndexedRedisOptions<T> {
 	optimisticDelay?: number;
 }
 
-// aaa
-
 export class IndexedRedis<T> {
 	private dbName: string;
 	private defaultValue: T;
@@ -67,13 +65,15 @@ export class IndexedRedis<T> {
 	}
 
 	private initDb = async () => {
+		if (this.db) {
+			return;
+		}
 		if (!this.initd) {
 			for (const key of Object.keys(this.defaultValue as object)) {
-				await this.baseSetEx(
+				await this.baseSetExNoCache(
 					key as keyof T,
 					0,
 					this.defaultValue[key as keyof T],
-					true,
 				);
 			}
 			localStorage.setItem(`indexed-redis-initd-${this.dbName}`, "true");
@@ -84,7 +84,7 @@ export class IndexedRedis<T> {
 		}
 		return new Promise((res) => {
 			if (!this.db) {
-				const reqDb = window.indexedDB.open("indexed-redis-" + this.dbName);
+				const reqDb = window.indexedDB.open(this.dbName);
 				reqDb.onerror = console.error;
 				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 				reqDb.onsuccess = (event: any) => {
@@ -123,16 +123,11 @@ export class IndexedRedis<T> {
 		await this.getAll();
 	};
 
-	private baseSetEx = async <K extends keyof T>(
+	private baseSetExNoCache = async <K extends keyof T>(
 		key: K,
 		expireMillisecond: number,
 		value: T[K],
-		isInit?: boolean,
 	) => {
-		if (!this.db && !isInit) {
-			await this.initDb();
-		}
-		this.clearExpiredItems();
 		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		const theObj = value as any;
 		if (!isHaveIndexedDb) {
@@ -171,6 +166,16 @@ export class IndexedRedis<T> {
 		});
 	};
 
+	private baseSetEx = async <K extends keyof T>(
+		key: K,
+		expireMillisecond: number,
+		value: T[K],
+	) => {
+		await this.initDb();
+		this.clearExpiredItems();
+		this.baseSetExNoCache(key, expireMillisecond, value);
+	};
+
 	private baseAssignEx = async <K extends keyof T>(
 		key: K,
 		expireMillisecond: number,
@@ -179,12 +184,9 @@ export class IndexedRedis<T> {
 		if (typeof value !== "object") {
 			throw new Error("[NanoIndexed.assign] assign need is object");
 		}
-		const old = await this.get(key);
+		const old = (await this.get(key)) || this.defaultValue[key];
 		if (!old) {
 			throw new Error("[NanoIndexed.assign] assign need has old object");
-		}
-		if (typeof old !== "object") {
-			return old;
 		}
 		const next = Object.assign(old, value);
 		this.setEx(key, expireMillisecond, next);
@@ -203,35 +205,20 @@ export class IndexedRedis<T> {
 		}
 	};
 
-	private baseGet = async <K extends keyof T>(key: K): Promise<T[K]> => {
-		if (!this.db) {
-			await this.initDb();
-		}
-		const cacheValue = this.getCacheValue(key as string);
-		if (cacheValue !== void 0) {
-			return cacheValue;
-		}
-		this.clearExpiredItems();
+	private baseGetNoCache = async <K extends keyof T>(key: K): Promise<T[K]> => {
 		if (!isHaveIndexedDb) {
 			return new Promise((res) => {
-				let data = localStorage.getItem(`[${this.dbName}] ${key as string}`);
-				if (data) {
-					try {
-						const obj = JSON.parse(data);
-						data = obj?.value;
-						if (obj?.expire && obj.expire < Date.now()) {
-							localStorage.removeItem(`[${this.dbName}] ${key as string}`);
-							res(this.defaultValue[key]);
-							return;
-						}
-					} catch (err) {}
+				const old = localStorage.getItem(`[${this.dbName}] ${key as string}`);
+				if (old === void 0 || old === null) {
+					return res(this.defaultValue[key]);
 				}
-				if (data === void 0 || data === null) {
-					res(this.defaultValue[key]);
-					return;
+				try {
+					const value = JSON.parse(old as string).value;
+					res(value);
+				} catch (error) {
+					console.error("[indexed-redis] get error:", error);
+					return res(this.defaultValue[key]);
 				}
-				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-				res(data as any);
 			});
 		}
 
@@ -243,12 +230,27 @@ export class IndexedRedis<T> {
 				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 				request.onsuccess = (event: any) => {
 					const data = event.target.result;
-					res(data?.value);
+					console.log("--debug--111", data);
+					if (data?.value === void 0) {
+						res(this.defaultValue[key]);
+					} else {
+						res(data?.value);
+					}
 				};
 			} else {
 				res(this.defaultValue[key]);
 			}
 		});
+	};
+
+	public get = async <K extends keyof T>(key: K): Promise<T[K]> => {
+		await this.initDb();
+		const cacheValue = this.getCacheValue(key as string);
+		if (cacheValue !== void 0) {
+			return cacheValue;
+		}
+		this.clearExpiredItems();
+		return this.baseGetNoCache(key);
 	};
 
 	// Public API
@@ -284,14 +286,8 @@ export class IndexedRedis<T> {
 	): Promise<Partial<T[K]>> => {
 		return this.baseAssignEx(key, 0, value);
 	};
-	public get = <K extends keyof T>(key: K): Promise<T[K]> => {
-		return this.baseGet(key);
-	};
 	public getAll = async (): Promise<Partial<T>> => {
-		if (!this.db) {
-			await this.initDb();
-		}
-
+		await this.initDb();
 		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		const out = {} as any;
 		Object.keys(this.valueCache).forEach((key) => {
@@ -367,9 +363,7 @@ export class IndexedRedis<T> {
 	};
 
 	public del = async <K extends keyof T>(key: K): Promise<T[K]> => {
-		if (!this.db) {
-			await this.initDb();
-		}
+		await this.initDb();
 		delete this.valueCache[key as string];
 		if (!isHaveIndexedDb) {
 			return new Promise((res) => {

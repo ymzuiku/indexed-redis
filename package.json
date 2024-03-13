@@ -33,7 +33,7 @@
     "typescript": "^5.3.2"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "throttle-debounce": "^5.0.0"
   },
   "dependencies": {
     "throttle-debounce": "^5.0.0"
