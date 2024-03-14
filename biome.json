@@ -11,7 +11,11 @@
 				"noConstantCondition": "off"
 			},
 			"a11y": {
+				"useAltText": "off",
 				"noSvgWithoutTitle": "off"
+			},
+			"suspicious": {
+				"noConsoleLog": "error"
 			},
 			"complexity": {
 				"noForEach": "off"
@@ -40,8 +44,6 @@
 		],
 		"ignore": [
 			"node_modules",
-			"esm",
-			"cjs",
 			"*.js"
 		]
 	}

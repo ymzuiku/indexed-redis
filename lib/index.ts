@@ -230,7 +230,6 @@ export class IndexedRedis<T> {
 				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 				request.onsuccess = (event: any) => {
 					const data = event.target.result;
-					console.log("--debug--111", data);
 					if (data?.value === void 0) {
 						res(this.defaultValue[key]);
 					} else {
