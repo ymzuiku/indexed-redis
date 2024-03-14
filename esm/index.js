@@ -188,7 +188,6 @@ class IndexedRedis {
         const request = objectStore.get(key);
         request.onsuccess = (event) => {
           const data = event.target.result;
-          console.log("--debug--111", data);
           if (data?.value === undefined) {
             res(this.defaultValue[key]);
           } else {
@@ -333,4 +332,4 @@ export {
   IndexedRedis
 };
 
-//# debugId=B59445C93D5339E864756e2164756e21
+//# debugId=2C35949EA48C0C3364756e2164756e21
