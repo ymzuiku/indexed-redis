@@ -1,7 +1,8 @@
 {
   "name": "indexed-redis",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "private": false,
+  "types": "lib/index.ts",
   "main": "lib/index.ts",
   "files": [
     "lib",
@@ -38,6 +39,5 @@
   },
   "dependencies": {
     "throttle-debounce": "^5.0.0"
-  },
-  "types": "esm/index.d.ts"
+  }
 }

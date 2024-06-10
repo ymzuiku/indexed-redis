@@ -14,4 +14,8 @@ execSync("npm rum esm");
 
 // 执行一些命令
 execSync("npm publish --access public", { stdio: "inherit" });
-fs.writeFileSync("package.json", basePkg);
+
+pkg.main = "lib/index.ts";
+pkg.types = "lib/index.ts";
+pkg.files = ["lib", "bun.lockb"];
+fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
