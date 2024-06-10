@@ -2,92 +2,80 @@
 import {debounce} from "throttle-debounce";
 
 // lib/is-have-indexed-db.ts
-var isHaveIndexedDb = typeof window !== "undefined" && typeof window.indexedDB !== "undefined";
+var isHaveIndexedDb = typeof (window || global) !== "undefined" && typeof (window || global).indexedDB !== "undefined";
 if (!isHaveIndexedDb) {
   console.error("[indexed-redis] [WARN] Your browser not have indexedDB, Now use localStorage.");
 }
 
 // lib/index.ts
-class IndexedRedis {
-  dbName;
-  defaultValue;
-  optimisticDelay;
-  db;
-  lastClearTime;
-  valueCache;
-  setExJobs;
-  initd;
-  runSetExJobs;
-  reduceValueCache = 0;
-  constructor({
-    dbName,
-    defaultValue,
-    optimisticDelay = 500
-  }) {
-    this.dbName = dbName;
-    this.defaultValue = defaultValue;
-    this.optimisticDelay = optimisticDelay;
-    this.lastClearTime = 0;
-    this.valueCache = {};
-    this.setExJobs = {};
-    this.initd = localStorage.getItem(`indexed-redis-initd-${dbName}`) === "true";
-    this.runSetExJobs = debounce(this.optimisticDelay, () => {
-      this.reduceValueCache++;
-      if (this.reduceValueCache > 200) {
-        this.reduceValueCache = 0;
-        Object.keys(this.valueCache).forEach((k) => {
-          const v = this.valueCache[k];
-          if (v.expire && v.expire < Date.now()) {
-            delete this.valueCache[k];
-          }
-        });
-        const keys2 = Object.keys(this.valueCache);
-        if (keys2.length > 500) {
-          this.valueCache = {};
-        }
-      }
-      const keys = Object.keys(this.setExJobs);
-      if (keys.length === 0) {
-        return;
-      }
-      keys.forEach((key) => {
-        const job = this.setExJobs[key];
-        if (job) {
-          this.baseSetEx(key, job.expire, job.value);
-        }
-      });
-      this.setExJobs = {};
-    });
+function IndexedRedis(options) {
+  const dbName = options.dbName;
+  const defaultValue = options.defaultValue;
+  const optimisticDelay = options.optimisticDelay || 500;
+  const isUseIndexedDb = options.onlyUseLocalStorage ? false : isHaveIndexedDb;
+  const setFormat = options.setFormat || baseFormat;
+  const getFormat = options.getFormat || baseFormat;
+  const ignoreCache = options.ignoreCache || false;
+  const oldKeys = localStorage.getItem(`[${dbName}-keys]`);
+  let hasKeys = {};
+  if (oldKeys) {
+    try {
+      hasKeys = JSON.parse(oldKeys);
+    } catch (error) {
+    }
   }
-  initDb = async () => {
-    if (this.db) {
+  const valueCache = {};
+  const setExJobs = {};
+  let db;
+  let initd = localStorage.getItem(`indexed-redis-initd-${dbName}`) === "true";
+  const getDefaultValue = (key) => {
+    if (defaultValue[key] === undefined) {
+      return defaultValue[key];
+    }
+    return JSON.parse(JSON.stringify(defaultValue[key]));
+  };
+  const runSetExJobs = debounce(optimisticDelay, () => {
+    const keys = Object.keys(setExJobs);
+    if (keys.length === 0) {
       return;
     }
-    if (!this.initd) {
-      for (const key of Object.keys(this.defaultValue)) {
-        await this.baseSetExNoCache(key, 0, this.defaultValue[key]);
+    keys.forEach((key) => {
+      const job = setExJobs[key];
+      if (job) {
+        setWithFormat(key, job);
       }
-      localStorage.setItem(`indexed-redis-initd-${this.dbName}`, "true");
-      this.initd = true;
+      delete setExJobs[key];
+    });
+  });
+  const saveOtherLocal = () => {
+    localStorage.setItem(`[${dbName}-keys]`, JSON.stringify(hasKeys));
+  };
+  const initDb = async () => {
+    if (db) {
+      return;
     }
-    if (!isHaveIndexedDb) {
+    if (!initd) {
+      localStorage.setItem(`indexed-redis-initd-${dbName}`, "true");
+      initd = true;
+    }
+    if (!isUseIndexedDb) {
       return;
     }
     return new Promise((res) => {
-      if (!this.db) {
-        const reqDb = window.indexedDB.open(this.dbName);
+      if (!db) {
+        const reqDb = window.indexedDB.open(dbName);
         reqDb.onerror = console.error;
         reqDb.onsuccess = (event) => {
-          if (!this.db) {
-            this.db = event.target.result;
+          if (!db) {
+            db = event.target.result;
           }
           res(undefined);
         };
         reqDb.onupgradeneeded = (event) => {
-          if (!this.db) {
-            this.db = event.target.result;
+          if (!db) {
+            db = event.target.result;
           }
-          this.db?.createObjectStore(this.dbName, {
+          db?.createObjectStore(dbName, {
             autoIncrement: false,
             keyPath: "key"
           });
@@ -97,239 +85,196 @@ class IndexedRedis {
       }
     });
   };
-  clearExpiredItems = async (force) => {
-    const now = Date.now();
-    if (!force && this.lastClearTime && now - this.lastClearTime < 300000) {
-      return;
-    }
-    this.lastClearTime = now;
-    await this.getAll();
-  };
-  baseSetExNoCache = async (key, expireMillisecond, value) => {
-    const theObj = value;
-    if (!isHaveIndexedDb) {
-      return new Promise((res) => {
-        localStorage.setItem(`[${this.dbName}] ${key}`, JSON.stringify({
-          value: theObj,
-          expire: expireMillisecond ? Date.now() + expireMillisecond : 0
-        }));
-        res(value);
-      });
+  const delDb = async (key) => {
+    await initDb();
+    saveOtherLocal();
+    if (!isUseIndexedDb) {
+      localStorage.removeItem(`[${dbName}] ${key}`);
     }
     return new Promise((res) => {
-      if (this.db?.objectStoreNames.contains(this.dbName)) {
-        const transaction = this.db.transaction([this.dbName], "readwrite");
-        const objectStore = transaction.objectStore(this.dbName);
+      if (db) {
+        const transaction = db.transaction([dbName], "readwrite");
+        const objectStore = transaction.objectStore(dbName);
+        const request = objectStore.delete(key);
+        request.onerror = (err) => {
+          console.error(err);
+          res(undefined);
+        };
+        request.onsuccess = () => {
+          res(undefined);
+        };
+      } else {
+        res(undefined);
+      }
+    });
+  };
+  const setDb = async (key, value) => {
+    await initDb();
+    saveOtherLocal();
+    if (!isUseIndexedDb) {
+      localStorage.setItem(`[${dbName}] ${key}`, JSON.stringify({
+        pis: value
+      }));
+    }
+    return new Promise((res) => {
+      if (db) {
+        const transaction = db.transaction([dbName], "readwrite");
+        const objectStore = transaction.objectStore(dbName);
         const data = {
           key,
-          value: theObj,
-          expire: expireMillisecond ? Date.now() + expireMillisecond : 0
+          value
         };
         const request = objectStore.put(data);
         request.onerror = (err) => {
           console.error(err);
-          res(value);
+          res(undefined);
         };
         request.onsuccess = () => {
-          res(value);
+          res(undefined);
         };
       } else {
-        res(value);
+        res(undefined);
       }
     });
   };
-  baseSetEx = async (key, expireMillisecond, value) => {
-    await this.initDb();
-    this.clearExpiredItems();
-    this.baseSetExNoCache(key, expireMillisecond, value);
-  };
-  baseAssignEx = async (key, expireMillisecond, value) => {
-    if (typeof value !== "object") {
-      throw new Error("[NanoIndexed.assign] assign need is object");
-    }
-    const old = await this.get(key) || this.defaultValue[key];
-    if (!old) {
-      throw new Error("[NanoIndexed.assign] assign need has old object");
-    }
-    const next = Object.assign(old, value);
-    this.setEx(key, expireMillisecond, next);
-    return next;
-  };
-  getCacheValue = (key) => {
-    const old = this.valueCache[key];
-    if (old) {
-      if (old.expire && old.expire < Date.now()) {
-        delete this.valueCache[key];
+  const getDb = async (key) => {
+    await initDb();
+    if (!isUseIndexedDb) {
+      const old = localStorage.getItem(`[${dbName}] ${key}`);
+      if (old === undefined || old === null) {
         return;
       }
-      return old.value;
-    }
-  };
-  baseGetNoCache = async (key) => {
-    if (!isHaveIndexedDb) {
-      return new Promise((res) => {
-        const old = localStorage.getItem(`[${this.dbName}] ${key}`);
-        if (old === undefined || old === null) {
-          return res(this.defaultValue[key]);
-        }
-        try {
-          const value = JSON.parse(old).value;
-          res(value);
-        } catch (error) {
-          console.error("[indexed-redis] get error:", error);
-          return res(this.defaultValue[key]);
-        }
-      });
+      try {
+        return JSON.parse(old).pis;
+      } catch (error) {
+        console.error("[indexed-redis] get error:", error);
+        return;
+      }
     }
     return new Promise((res) => {
-      if (this.db?.objectStoreNames.contains(this.dbName)) {
-        const transaction = this.db.transaction([this.dbName]);
-        const objectStore = transaction.objectStore(this.dbName);
+      if (db) {
+        const transaction = db.transaction([dbName], "readonly");
+        const objectStore = transaction.objectStore(dbName);
         const request = objectStore.get(key);
         request.onsuccess = (event) => {
           const data = event.target.result;
           if (data?.value === undefined) {
-            res(this.defaultValue[key]);
+            res(undefined);
           } else {
             res(data?.value);
           }
         };
       } else {
-        res(this.defaultValue[key]);
+        res(undefined);
       }
     });
   };
-  get = async (key) => {
-    await this.initDb();
-    const cacheValue = this.getCacheValue(key);
-    if (cacheValue !== undefined) {
-      return cacheValue;
+  const getWithFormat = async (key) => {
+    const data = await getDb(key);
+    if (data === undefined || data === null) {
+      return data;
     }
-    this.clearExpiredItems();
-    return this.baseGetNoCache(key);
+    return Promise.resolve(getFormat(data));
   };
-  setEx = async (key, expireMillisecond, value) => {
+  const setWithFormat = async (key, value) => {
+    const nextValue = await Promise.resolve(setFormat(value));
+    return setDb(key, nextValue);
+  };
+  const set = (key, value) => {
+    return setExWithCache(key, 0, value);
+  };
+  const setExWithCache = async (key, expireMillisecond, value) => {
+    hasKeys[key] = 1;
     const now = Date.now();
-    this.setExJobs[key] = {
+    setExJobs[key] = {
       expire: expireMillisecond,
       value
     };
-    this.valueCache[key] = {
+    valueCache[key] = {
       expire: expireMillisecond ? now + expireMillisecond : 0,
       value
     };
-    this.runSetExJobs();
+    runSetExJobs();
   };
-  set = async (key, value) => {
-    return this.setEx(key, 0, value);
+  const getExWithCache = async (key) => {
+    const cacheValue = valueCache[key];
+    if (cacheValue === undefined) {
+      const data = await getWithFormat(key);
+      if (data === undefined || data === null) {
+        return getDefaultValue(key);
+      }
+      if (data.expire && data.expire < Date.now()) {
+        await delWithCache(key);
+        return getDefaultValue(key);
+      }
+      if (data.value === undefined) {
+        data.value = getDefaultValue(key);
+      }
+      if (!ignoreCache) {
+        valueCache[key] = data;
+      }
+      return data.value;
+    }
+    if (cacheValue.expire && cacheValue.expire < Date.now()) {
+      delWithCache(key);
+      return getDefaultValue(key);
+    }
+    return cacheValue.value;
   };
-  assignEx = (key, expireMillisecond, value) => {
-    return this.baseAssignEx(key, expireMillisecond, value);
+  const delWithCache = async (key) => {
+    delete hasKeys[key];
+    delete valueCache[key];
+    delete setExJobs[key];
+    await delDb(key);
   };
-  assign = (key, value) => {
-    return this.baseAssignEx(key, 0, value);
+  const assign = async (key, value) => {
+    return assignEx(key, 0, value);
   };
-  getAll = async () => {
-    await this.initDb();
+  const assignEx = async (key, expireMillisecond, value) => {
+    const old = await getExWithCache(key) || getDefaultValue(key);
+    if (!old) {
+      throw new Error("[NanoIndexed.assign] assign need is object");
+    }
+    const next = Object.assign(old, value);
+    setExWithCache(key, expireMillisecond, next);
+    return next;
+  };
+  const getAll = async () => {
+    const keys = Object.keys({
+      ...defaultValue,
+      ...hasKeys
+    });
     const out = {};
-    Object.keys(this.valueCache).forEach((key) => {
-      const v = this.valueCache[key];
-      if (v.expire && v.expire < Date.now()) {
-        delete this.valueCache[key];
-        return;
-      }
-      out[key] = v.value;
-    });
-    if (!isHaveIndexedDb) {
-      return new Promise((res) => {
-        const now = Date.now();
-        for (let i = 0;i < localStorage.length; i++) {
-          const key = localStorage.key(i) || "";
-          if (key.indexOf(`[${this.dbName}] `) === 0) {
-            const itemStr = localStorage.getItem(key);
-            if (itemStr) {
-              let item;
-              try {
-                item = JSON.parse(itemStr);
-                if (item.expire && now > item.expire) {
-                  localStorage.removeItem(key);
-                  continue;
-                }
-                const realKey = key.replace(`[${this.dbName}] `, "");
-                if (out[realKey] === undefined) {
-                  out[realKey] = item.value;
-                }
-              } catch (error) {
-              }
-            }
-          }
-        }
-        res(out);
-      });
+    for (const key of keys) {
+      const value = await getExWithCache(key);
+      out[key] = value;
     }
-    return new Promise((res) => {
-      if (this.db?.objectStoreNames.contains(this.dbName)) {
-        const transaction = this.db.transaction([this.dbName]);
-        const objectStore = transaction.objectStore(this.dbName);
-        const request = objectStore.getAll();
-        const needDelete = [];
-        request.onsuccess = (event) => {
-          const data = event.target.result;
-          const now = Date.now();
-          data.forEach((v) => {
-            if (v.expire && v.expire < now) {
-              needDelete.push(v.key);
-              return;
-            }
-            if (out[v.key] === undefined) {
-              out[v.key] = v.value;
-            }
-          });
-          res(out);
-          setTimeout(() => {
-            needDelete.forEach((key) => {
-              this.del(key);
-            });
-          });
-        };
-      } else {
-        res(out);
-      }
-    });
+    return out;
   };
-  del = async (key) => {
-    await this.initDb();
-    delete this.valueCache[key];
-    if (!isHaveIndexedDb) {
-      return new Promise((res) => {
-        localStorage.removeItem(`[${this.dbName}] ${key}`);
-        res(this.defaultValue[key]);
-      });
+  const flushDb = async () => {
+    const keys = Object.keys({
+      ...defaultValue,
+      ...hasKeys
+    });
+    for (const key of keys) {
+      await delWithCache(key);
     }
-    return new Promise((res) => {
-      if (this.db?.objectStoreNames.contains(this.dbName)) {
-        const transaction = this.db.transaction([this.dbName], "readwrite");
-        const objectStore = transaction.objectStore(this.dbName);
-        const request = objectStore.delete(key);
-        request.onerror = (err) => {
-          console.error(err);
-          res(this.defaultValue[key]);
-        };
-        request.onsuccess = res;
-      } else {
-        res(this.defaultValue[key]);
-      }
-    });
   };
-  flushDb = async () => {
-    const all = await this.getAll();
-    await Promise.all(Object.keys(all).map((key) => {
-      return this.del(key);
-    }));
+  return {
+    get: getExWithCache,
+    setEx: setExWithCache,
+    set,
+    assign,
+    assignEx,
+    del: delWithCache,
+    getAll,
+    flushDb,
+    getDefaultValue
   };
 }
+var baseFormat = (v) => v;
 export {
   IndexedRedis
 };
 
-//# debugId=2C35949EA48C0C3364756e2164756e21
+//# debugId=BC46FE6303066C8064756e2164756e21
