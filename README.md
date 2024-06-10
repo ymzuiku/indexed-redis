@@ -59,7 +59,7 @@ interface Model {
 }
 
 const example = async () => {
-  const db = new IndexedRedis<Model>({
+  const db = IndexedRedis<Model>({
     dbName: "my-db",
     defaultValue: { page: { name: "", age: 0 }, user: { email: "" } },
   });
