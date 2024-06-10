@@ -10,8 +10,8 @@ pkg.files = ["esm", "bun.lockb"];
 
 fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
 
-// 执行 npm publish
-// 执行 npm publish --access public
+execSync("npm rum esm");
 
-execSync("npm publish --access public");
+// 执行一些命令
+execSync("npm publish --access public", { stdio: "inherit" });
 fs.writeFileSync("package.json", basePkg);
