@@ -1,5 +1,6 @@
 export const isHaveIndexedDb =
-	typeof window !== "undefined" && typeof window.indexedDB !== "undefined";
+	typeof (window || global) !== "undefined" &&
+	typeof (window || global).indexedDB !== "undefined";
 
 if (!isHaveIndexedDb) {
 	console.error(

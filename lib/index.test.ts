@@ -1,17 +1,25 @@
 /// <reference lib="dom" />
+import "./fake-indexeddb-mock";
 
 import { beforeEach, describe, expect, it, setSystemTime } from "bun:test";
 import { IndexedRedis } from ".";
 
 describe("indexedDB", () => {
-	type Model = { dog: string; obj?: { age?: number; name?: string }, fish?:{num:number} };
+	type Model = {
+		dog: string;
+		obj?: { age?: number; name?: string };
+		fish?: { num: number };
+	};
 	let db: IndexedRedis<Model>;
 
 	beforeEach(() => {
-		db = new IndexedRedis<Model>({
+		db = IndexedRedis<Model>({
+			ignoreCache: true,
 			dbName: Math.random().toString(36).substring(7),
-			defaultValue: { dog: "the dog", fish:{num:1} },
+			defaultValue: { dog: "the dog", fish: { num: 1 } },
 			optimisticDelay: 500,
+			setFormat: (v) => `${JSON.stringify({ vvv: v })}...get`,
+			getFormat: (v) => JSON.parse(v.replace("...get", "")).vvv,
 		});
 		setSystemTime(new Date());
 	});
@@ -25,7 +33,7 @@ describe("indexedDB", () => {
 		const all = await db.getAll();
 		expect(all).toEqual({
 			dog: "the dog",
-			fish:{num:1},
+			fish: { num: 1 },
 			obj: undefined,
 		});
 	});
@@ -41,7 +49,7 @@ describe("indexedDB", () => {
 	});
 
 	it("set, assign", async () => {
-		const data3 = await db.assign("fish", {num:50});
+		const data3 = await db.assign("fish", { num: 50 });
 		expect(data3).toEqual({ num: 50 });
 	});
 
@@ -55,7 +63,6 @@ describe("indexedDB", () => {
 		expect(data3).toEqual({ age: 50 });
 
 		setSystemTime(new Date(Date.now() + 2000));
-		db.clearExpiredItems(true);
 		const data4 = await db.get("obj");
 		expect(data4).toBeUndefined();
 	});
@@ -71,7 +78,6 @@ describe("indexedDB", () => {
 		expect(all.obj).toEqual({ age: 50 });
 
 		setSystemTime(new Date(Date.now() + 2000));
-		db.clearExpiredItems(true);
 		const all2 = await db.getAll();
 		expect(all2.obj).toBeUndefined();
 		expect(all2.dog).toEqual("the dog");
@@ -88,6 +94,11 @@ describe("indexedDB", () => {
 		expect(data3?.name).toEqual("the name");
 		expect(data3?.age).toEqual(50);
 
+		const obj = await db.get("obj");
+		expect(obj).toEqual({ age: 50, name: "the name" });
+		expect(obj?.name).toEqual("the name");
+		expect(obj?.age).toEqual(50);
+
 		const all = await db.getAll();
 		expect(all).not.toBeUndefined();
 		expect(all.obj).toEqual({ age: 50, name: "the name" });
@@ -95,7 +106,6 @@ describe("indexedDB", () => {
 		expect(all.obj?.age).toEqual(50);
 
 		setSystemTime(new Date(Date.now() + 2000));
-		db.clearExpiredItems(true);
 		const all2 = await db.getAll();
 		expect(all2.obj).toBeUndefined();
 		expect(all2.dog).toEqual("the dog");
@@ -122,7 +132,6 @@ describe("indexedDB", () => {
 	it("should remove item", async () => {
 		await db.set("dog", "value");
 		await db.del("dog");
-		const aa = await db.getAll();
 		const item = await db.get("dog");
 		expect(item).toEqual("the dog");
 	});
@@ -130,7 +139,6 @@ describe("indexedDB", () => {
 	it("should remove items when clear is called", async () => {
 		await db.set("dog", "value");
 		await db.flushDb();
-		const aa = await db.getAll();
 		const item = await db.get("dog");
 		expect(item).toBe("the dog");
 	});
