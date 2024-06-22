@@ -57,7 +57,7 @@ describe("indexedDB", () => {
 		const data = await db.get("obj");
 		expect(data).toBeUndefined();
 
-		db.setEx("obj", 1000, { age: 50 }, false);
+		db.setEx("obj", 1000, { age: 50 }, { immediately: false });
 
 		const data3 = await db.get("obj");
 		expect(data3).toEqual({ age: 50 });

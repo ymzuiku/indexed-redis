@@ -1,6 +1,6 @@
 {
   "name": "indexed-redis",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "private": false,
   "types": "lib/index.ts",
   "main": "lib/index.ts",
@@ -11,7 +11,7 @@
   "scripts": {
     "prepare": "husky install",
     "pre-commit": "bun test && bun run scripts/esm.ts",
-    "new-publish": "bun run scripts/publish.ts",
+    "new-publish": "bun run esm && bun run scripts/publish.ts",
     "esm": "bun run scripts/esm.ts",
     "dev": "bun run scripts/esm-watch.ts"
   },
