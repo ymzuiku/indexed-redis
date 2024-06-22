@@ -38,6 +38,9 @@
     "throttle-debounce": "^5.0.0"
   },
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "jsonwebtoken": "^9.0.2",
+    "murmur3hex": "^0.0.1",
     "throttle-debounce": "^5.0.0"
   }
 }

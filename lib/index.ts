@@ -1,4 +1,4 @@
-import { debounce } from "throttle-debounce";
+import { throttle } from "throttle-debounce";
 import { isHaveIndexedDb } from "./is-have-indexed-db";
 
 interface IndexedRedisOptions<T> {
@@ -13,9 +13,9 @@ interface IndexedRedisOptions<T> {
 	getFormat?: (value: any) => any | Promise<any>;
 }
 
-const baseFormat = (v: unknown) => v;
-
 export type IndexedRedis<T> = ReturnType<typeof IndexedRedis<T>>;
+
+const baseFormat = (v: unknown) => v;
 
 export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 	const dbName = options.dbName;
@@ -47,7 +47,7 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 		return JSON.parse(JSON.stringify(defaultValue[key]));
 	};
 
-	const runSetExJobs = debounce(optimisticDelay, () => {
+	const runImmediateSetExJobs = () => {
 		const keys = Object.keys(setExJobs);
 		if (keys.length === 0) {
 			return;
@@ -59,6 +59,11 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 			}
 			delete setExJobs[key];
 		});
+	};
+
+	const runSetExJobs = throttle(optimisticDelay, runImmediateSetExJobs, {
+		noLeading: true,
+		noTrailing: false,
 	});
 
 	const saveOtherLocal = () => {
@@ -205,8 +210,12 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 		return setDb(key, nextValue);
 	};
 
-	const set = (key: keyof T, value: T[keyof T]) => {
-		return setExWithCache(key, 0, value);
+	const set = (
+		key: keyof T,
+		value: T[keyof T],
+		options: { immediately?: boolean } = { immediately: false },
+	) => {
+		return setExWithCache(key, 0, value, options);
 	};
 
 	// use cache
@@ -214,6 +223,7 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 		key: K,
 		expireMillisecond: number,
 		value: T[K],
+		options: { immediately?: boolean } = { immediately: false },
 	) => {
 		hasKeys[key as string] = 1;
 		const now = Date.now();
@@ -225,7 +235,11 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 			expire: expireMillisecond ? now + expireMillisecond : 0,
 			value,
 		};
-		runSetExJobs();
+		if (options.immediately) {
+			runImmediateSetExJobs();
+		} else {
+			runSetExJobs();
+		}
 	};
 	const getExWithCache = async <K extends keyof T>(key: K): Promise<T[K]> => {
 		const cacheValue = valueCache[key as string];
@@ -261,20 +275,22 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 	const assign = async <K extends keyof T>(
 		key: K,
 		value: Partial<T[K]>,
+		options: { immediately?: boolean } = { immediately: false },
 	): Promise<Partial<T[K]>> => {
-		return assignEx(key, 0, value);
+		return assignEx(key, 0, value, options);
 	};
 	const assignEx = async <K extends keyof T>(
 		key: K,
 		expireMillisecond: number,
 		value: Partial<T[K]>,
+		options: { immediately?: boolean } = { immediately: false },
 	): Promise<Partial<T[K]>> => {
 		const old = (await getExWithCache(key)) || getDefaultValue(key);
 		if (!old) {
 			throw new Error("[NanoIndexed.assign] assign need is object");
 		}
 		const next = Object.assign(old, value) as T[K];
-		setExWithCache(key, expireMillisecond, next);
+		setExWithCache(key, expireMillisecond, next, options);
 		return next;
 	};
 
