@@ -241,6 +241,12 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 			runSetExJobs();
 		}
 	};
+
+	const syncGet = <K extends keyof T>(key: K): T[K] => {
+		const cacheValue = valueCache[key as string];
+		return cacheValue.value as T[K];
+	};
+
 	const getExWithCache = async <K extends keyof T>(key: K): Promise<T[K]> => {
 		const cacheValue = valueCache[key as string];
 		if (cacheValue === void 0) {
@@ -322,6 +328,7 @@ export function IndexedRedis<T>(options: IndexedRedisOptions<T>) {
 	// set -> setExWithCache -> setWithFormat -> setDb
 	// get -> getExWithCache -> getWithFormat -> getDb
 	return {
+		syncGet,
 		get: getExWithCache,
 		setEx: setExWithCache,
 		set,
